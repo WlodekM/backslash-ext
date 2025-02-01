@@ -1,0 +1,25 @@
+{
+  "name": "backslash",
+  "displayName": "backslash.",
+  "description": "language support for backslash (tsh)",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.54.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "backslash",
+      "aliases": ["backslash (tsh)", "backslash"],
+      "extensions": [".tsh .bsl"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "backslash",
+      "scopeName": "source.backslash",
+      "path": "./syntaxes/backslash.tmLanguage.json"
+    }]
+  }
+}
