@@ -9,6 +9,11 @@
   "categories": [
     "Programming Languages"
   ],
+  "activationEvents": [
+    "onLanguage:backslash"
+  ],
+  "type": "commonjs",
+  "main": "./src/extension.js",
   "contributes": {
     "languages": [{
       "id": "backslash",
@@ -21,5 +26,11 @@
       "scopeName": "source.backslash",
       "path": "./syntaxes/backslash.tmLanguage.json"
     }]
-  }
+  },
+  "completionItemProvider": [
+    {
+      "language": "backslash",
+      "triggerCharacters": [".", ":", "("] 
+    }
+  ]
 }

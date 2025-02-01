@@ -11,10 +11,28 @@
 	],
 	"repository": {
 		"keywords": {
-			"patterns": [{
-				"name": "keyword.control.backslash",
-				"match": "\\b(if|while|for|return)\\b"
-			}]
+			"patterns": [
+				{
+					"name": "comment.line.double-slash.backslash",
+					"match": "//.*$"
+				},
+				{
+					"name": "keyword.control",
+					"match": "\\b(if|control_while|control_foreach|control_if|gf)\\b"
+				},
+				{
+					"name": "entity.name.function",
+					"match": "(?<=\\b)([a-zA-Z_][a-zA-Z0-9_]*)(?=\\()"
+				},
+				{
+					"name": "variable.language.boolean",
+					"match": "\\b(true|True|false|False)\\b"
+				},
+				{
+					"match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\b",
+					"name": "variable.other"
+				}
+			]
 		},
 		"strings": {
 			"name": "string.quoted.double.backslash",
