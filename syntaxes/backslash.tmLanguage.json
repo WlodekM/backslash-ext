@@ -21,6 +21,10 @@
 					"match": "\\b(if|control_while|control_foreach|control_if|gf)\\b"
 				},
 				{
+					"name": "keyword.other",
+					"match": "\\b(var)\\b"
+				},
+				{
 					"name": "entity.name.function",
 					"match": "(?<=\\b)([a-zA-Z_][a-zA-Z0-9_]*)(?=\\()"
 				},

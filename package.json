@@ -1,36 +1,52 @@
 {
-  "name": "backslash",
-  "displayName": "backslash.",
-  "description": "language support for backslash (tsh)",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.54.0"
-  },
-  "categories": [
-    "Programming Languages"
-  ],
-  "activationEvents": [
-    "onLanguage:backslash"
-  ],
-  "type": "commonjs",
-  "main": "./src/extension.js",
-  "contributes": {
-    "languages": [{
-      "id": "backslash",
-      "aliases": ["backslash (tsh)", "backslash"],
-      "extensions": [".tsh .bsl"],
-      "configuration": "./language-configuration.json"
-    }],
-    "grammars": [{
-      "language": "backslash",
-      "scopeName": "source.backslash",
-      "path": "./syntaxes/backslash.tmLanguage.json"
-    }]
-  },
-  "completionItemProvider": [
-    {
-      "language": "backslash",
-      "triggerCharacters": [".", ":", "("] 
-    }
-  ]
+	"name": "backslash",
+	"displayName": "backslash.",
+	"description": "language support for backslash (tsh)",
+	"version": "0.0.1",
+	"engines": {
+		"vscode": "^1.54.0"
+	},
+	"categories": [
+		"Programming Languages"
+	],
+	"activationEvents": [
+		"onLanguage:backslash"
+	],
+	"type": "commonjs",
+	"main": "./src/extension.js",
+	"contributes": {
+		"languages": [
+			{
+				"id": "backslash",
+				"aliases": [
+					"backslash (tsh)",
+					"backslash"
+				],
+				"extensions": [
+					".tsh .bsl"
+				],
+				"configuration": "./language-configuration.json"
+			}
+		],
+		"grammars": [
+			{
+				"language": "backslash",
+				"scopeName": "source.backslash",
+				"path": "./syntaxes/backslash.tmLanguage.json"
+			}
+		]
+	},
+	"completionItemProvider": [
+		{
+			"language": "backslash",
+			"triggerCharacters": [
+				".",
+				":",
+				"("
+			]
+		}
+	],
+	"__metadata": {
+		"size": 84591
+	}
 }

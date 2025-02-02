@@ -12,7 +12,7 @@ function documentBlock(block, data, branches = false) {
         .map(n => data[n])
         .filter(a => a[0]?.type != 'field_image');
     const branchfull = args.filter(a => a && a[0]?.type == 'input_statement')
-    return `${category}.${name}(${(args[0] ?? []).map(a => `${a.name}: ${a.type} ${a.check} ${Object.keys(a)}`).join(', ')})${''
+    return `${category}.${name}(${(args[0] ?? []).map(a => `${a.name}: ${a.type}-${a.check ?? a.type}`).join(', ')})${''
     }${branches ? ' ' + branchfull.map(a => '{ }').join(' ') : ''}`
 }
 
