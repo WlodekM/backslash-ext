@@ -21,6 +21,22 @@
 					"match": "\\b(if|control_while|control_foreach|control_if|gf)\\b"
 				},
 				{
+					"match": "(#\\s*include)\\s*<([^>]+)>",
+					"captures": {
+						"1": {
+							"name": "keyword.control.include"
+						},
+						"2": {
+							"name": "string.quoted.double",
+							"patterns": [
+								{
+									"include": "#otherRules"
+								}
+							]
+						}
+					}
+				},
+				{
 					"name": "keyword.other",
 					"match": "\\b(var)\\b"
 				},
