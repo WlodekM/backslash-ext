@@ -18,7 +18,7 @@
 				},
 				{
 					"name": "keyword.control",
-					"match": "\\b(if|control_while|control_foreach|control_if|gf)\\b"
+					"match": "\\b(if|else)\\b"
 				},
 				{
 					"match": "(#\\s*include)\\s*<([^>]+)>",
@@ -38,7 +38,7 @@
 				},
 				{
 					"name": "keyword.other",
-					"match": "\\b(var)\\b"
+					"match": "\\b(var|global)\\b"
 				},
 				{
 					"name": "entity.name.function",
