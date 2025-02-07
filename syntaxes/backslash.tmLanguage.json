@@ -30,15 +30,36 @@
 							"name": "string.quoted.double",
 							"patterns": [
 								{
-									"include": "#otherRules"
+									"include": "$self"
 								}
 							]
 						}
 					}
 				},
 				{
+					"match": "\\b(fn) ([a-zA-Z_][a-zA-Z0-9_]*)",
+					"captures": {
+						"1": { "name": "keyword.control" },  
+						"2": { "name": "entity.name.function" }
+					}
+				},
+				{
+					"name": "keyword.control",
+					"match": "\\b(fn)\\b"
+				},
+				{
+					"match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(\\()(.*?)(\\))\\s*(\\{)",
+					"captures": {
+						"1": { "name": "keyword.control" },  
+						"2": { "name": "punctuation.definition.parameters.begin" },  
+						"3": { "patterns": [{ "include": "$self" }] },  
+						"4": { "name": "punctuation.definition.parameters.end" },  
+						"5": { "name": "punctuation.section.block.begin" }
+					}
+				},
+				{
 					"name": "keyword.other",
-					"match": "\\b(var|global)\\b"
+					"match": "\\b(var|list|global)\\b"
 				},
 				{
 					"name": "entity.name.function",
