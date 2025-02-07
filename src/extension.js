@@ -52,6 +52,10 @@ async function fetchBlocksFromURL(url) {
                 REPORTER: "reporter",
                 XML: "xml"
             },
+            TargetType: {
+                SPRITE: "sprite",
+                STAGE: "stage"
+            },
             Cast: {},
             ArgumentType: {
                 ANGLE: "angle",
@@ -145,7 +149,9 @@ function activate(context) {
                             .filter(a => a.startsWith('args'))
                             .map(n => data[n])
                             .filter(a => a[0]?.type != 'field_image');
-                        if (args[1] && args[1][0]?.type == 'input_statement') {
+                        if (args[1] && args[1][0]?.type == 'input_statement' ||
+                            args[0] && args[0][0]?.type == 'input_statement'
+                        ) {
                             const ci = new vscode.CompletionItem(block, vscode.CompletionItemKind.Keyword);
                             ci.command = {
                                 command: '',
