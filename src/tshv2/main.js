@@ -230,6 +230,8 @@ exports.Lexer = Lexer;
 class Parser {
     constructor(tokens, source) {
         this.position = 0;
+        this.localVars = [];
+        this.globalVars = [];
         this.tokens = tokens;
         this.source = source;
     }
@@ -297,6 +299,10 @@ class Parser {
             const node = this.peek(-1);
             const type = node.value;
             const identifier = this.expect(TokenType.IDENTIFIER, "Expected variable name").value;
+            if (type == 'global')
+                this.globalVars.push(identifier);
+            else
+                this.localVars.push(identifier);
             this.expect(TokenType.ASSIGN, "Expected '=' after variable name");
             const value = this.parseAssignment();
             return { type: "VariableDeclaration", identifier, value, vtype: type };

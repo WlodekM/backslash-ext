@@ -144,6 +144,8 @@ export declare class Parser {
     private tokens;
     private source;
     position: number;
+    localVars: string[];
+    globalVars: string[];
     constructor(tokens: Token[], source: string);
     private peek;
     private advance;

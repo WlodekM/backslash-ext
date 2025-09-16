@@ -1,7 +1,8 @@
 const vscode = require('vscode');
 const { readFileSync } = require("fs");
 const path = require("path")
-const { Lexer, TokenType, Parser } = require('./tshv2/main.js')
+const { Lexer, TokenType, Parser } = require('./tshv2/main.js');
+const { getNodeChildren } = require('./tshv2/getNodeChildren.js');
 
 const blocks = JSON.parse(readFileSync(path.join(__dirname, '../blocks.json')));
 console.log(Object.keys(blocks).length, blocks.control_forever)
@@ -126,6 +127,8 @@ function documentBlock(block, data, branches = false) {
  * @param {vscode.ExtensionContext} context 
  */
 function activate(context) {
+    /** @type {Map<string, string[]>} */
+    const varStore = new Map();
     console.log("AAAAA")
     const provider = vscode.languages.registerCompletionItemProvider(
         'backslash', // Match your language ID from package.json
@@ -172,11 +175,60 @@ function activate(context) {
                         return ci
                     })
                 ].filter(a => a != null);
+                for (const vars of varStore.values()) {
+                    items.unshift(...vars.map(v => new vscode.CompletionItem(v, vscode.CompletionItemKind.Variable),))
+                }
                 return items;
             }
         },
         '' // Triggers on any character; you can set this to a trigger character like '.' or ':'
     );
+    vscode.workspace.onDidOpenTextDocument(doc => {
+        varStore.set(doc.uri.toString(), []);
+        updateDiagnostics(doc, collection)
+    });
+
+    vscode.workspace.onDidCloseTextDocument(doc => {
+        varStore.delete(doc.uri.toString());
+    });
+    // function findVars(ast, doc) {
+    //     console.log("findign var decls")
+    //     /**
+    //      * @param {string[]} currLocalVars 
+    //      * @param {string[]} currGlobalVars 
+    //      * @param {import('./tshv2/main.js').ASTNode} node 
+    //      */
+    //     function getVars(currLocalVars, currGlobalVars, node) {
+    //         console.debug('>', node)
+    //         if (!node) return [currLocalVars, currGlobalVars]
+    //         let [local, global] = [currLocalVars, currGlobalVars];
+    //         if (node.type == 'VariableDeclaration') {
+    //             [local, global][['var', 'global'].indexOf(node.vtype)].push(node.identifier);
+    //             return [local, global]
+    //         }
+    //         const children = getNodeChildren(node);
+    //         for (const child of children) {
+    //             const [addL, addG] = getVars(local, global, child);
+    //             local.push(...addL);
+    //             global.push(...addG);
+    //         }
+    //         return [local, global]
+    //     }
+
+    //     const [thisLocalVars, thisGlobalVars] = [[], []]
+    //     for (const node of ast) {
+    //         console.log('j')
+    //         const [local, global] = getVars([], [], node);
+    //         console.log(node, local, global)
+    //         thisLocalVars.push(...local);
+    //         thisGlobalVars.push(...global);
+    //     }
+
+    //     varStore.set(doc.uri.toString(), thisLocalVars);
+    //     console.log(doc.uri.toString())
+    //     console.log(thisLocalVars)
+    //     console.log(varStore)
+    // }
     /**
      * @param {vscode.TextDocument} doc
      * @param {vscode.DiagnosticCollection} collection
@@ -211,9 +263,9 @@ function activate(context) {
         }
 
         const parser = new Parser(lexer.tokens, text);
-        
+        let ast;
         try {
-            parser.parse()
+            ast = parser.parse()
         } catch (error) {
             const errorToken = lexer.tokens[parser.position];
             console.error(error)
@@ -233,11 +285,14 @@ function activate(context) {
             return;
         }
 
+        varStore.set(doc.uri.toString(), parser.localVars);
+        //TODO - global vars
+
         collection.set(doc.uri, diagnostics);
     }
     vscode.workspace.onDidChangeTextDocument(e => updateDiagnostics(e.document, collection));
 
-    const collection = vscode.languages.createDiagnosticCollection('myExtension');
+    const collection = vscode.languages.createDiagnosticCollection('backslash');
     context.subscriptions.push(collection);
     /** @typedef {import('./tshv2/main.js').Token} Token */
     /** @type {TokenType[]} */
