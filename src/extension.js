@@ -1,6 +1,7 @@
 const vscode = require('vscode');
 const { readFileSync } = require("fs");
 const path = require("path")
+const { Lexer, TokenType, Parser } = require('./tshv2/main.js')
 
 const blocks = JSON.parse(readFileSync(path.join(__dirname, '../blocks.json')));
 console.log(Object.keys(blocks).length, blocks.control_forever)
@@ -176,7 +177,166 @@ function activate(context) {
         },
         '' // Triggers on any character; you can set this to a trigger character like '.' or ':'
     );
+    /**
+     * @param {vscode.TextDocument} doc
+     * @param {vscode.DiagnosticCollection} collection
+     */
+    function updateDiagnostics(doc, collection) {
+        if (doc.languageId !== 'backslash') return;
+        console.log('upd')
 
+        /** @type {vscode.Diagnostic[]} */
+        const diagnostics = [];
+
+        const text = doc.getText();
+        
+        const lexer = new Lexer(text);
+        
+        try {
+            lexer.tokenize()
+        } catch (error) {
+            const range = new vscode.Range(
+                doc.positionAt(lexer.position),
+                doc.positionAt(lexer.position)
+            );
+
+            diagnostics.push({
+                severity: vscode.DiagnosticSeverity.Error,
+                range,
+                message: `Lexing error: ${error}`,
+                source: 'backslash',
+            });
+            collection.set(doc.uri, diagnostics);
+            return;
+        }
+
+        const parser = new Parser(lexer.tokens, text);
+        
+        try {
+            parser.parse()
+        } catch (error) {
+            const errorToken = lexer.tokens[parser.position];
+            console.error(error)
+            console.log(errorToken, lexer, parser)
+            const range = new vscode.Range(
+                doc.positionAt(errorToken.start - 1),
+                doc.positionAt(errorToken.end - 2)
+            );
+
+            diagnostics.push({
+                severity: vscode.DiagnosticSeverity.Error,
+                range,
+                message: `Parsing error: ${error}`,
+                source: 'backslash',
+            });
+            collection.set(doc.uri, diagnostics);
+            return;
+        }
+
+        collection.set(doc.uri, diagnostics);
+    }
+    vscode.workspace.onDidChangeTextDocument(e => updateDiagnostics(e.document, collection));
+
+    const collection = vscode.languages.createDiagnosticCollection('myExtension');
+    context.subscriptions.push(collection);
+    /** @typedef {import('./tshv2/main.js').Token} Token */
+    /** @type {TokenType[]} */
+    // const keywords = [
+    //     TokenType.ELSE,
+    //     TokenType.FN,
+    //     TokenType.FOR,
+    //     TokenType.GREENFLAG,
+    //     TokenType.IF
+    // ]
+    /** @typedef {"namespace" | "class" | "enum" | "interface" | "struct" | "typeParameter" | "type" | "parameter" | "variable" | "property" | "enumMember" | "decorator" | "event" | "function" | "method" | "macro" | "label" | "comment" | "string" | "keyword" | "number" | "regexp" | "operator"} vsTokenType*/
+    /** @type {Record<TokenType, [vsTokenType] | [vsTokenType, string] | false | (lastToken: TokenType | undefined) => ([vsTokenType, string] | [vsTokenType])} */
+    const tokenTypeToVs = {
+        ASSIGN: ['operator'],
+        ASSIGNBINOP: ['operator'],
+        BINOP: ['operator'],
+        COMMA: false,
+        ELSE: ['keyword'],
+        EOF: false,
+        FN: false,
+        FOR: ['keyword'],
+        GREATER: ['operator'],
+        GREENFLAG: ['keyword'],
+        IDENTIFIER: (last) => {
+            if (!last)
+                return ['variable'];
+            if (last == TokenType.FN)
+                return ['function', 'declaration']
+            if (last != TokenType.VAR && last != TokenType.LIST)
+                return ['variable'];
+            return ['variable', 'declaration'];
+        },
+        IF: ['keyword'],
+        INCLUDE: ['keyword'],
+        LBRACE: false,
+        LIST: ['keyword'],
+        LPAREN: ['operator'],
+        NOT: ['operator'],
+        NUMBER: ['number'],
+        RBRACE: false,
+        RETURN: ['keyword'],
+        RPAREN: false,
+        STRING: ['string'],
+        VAR: ['keyword'],
+        WFN: ['keyword']
+    }
+    const tokenTypes = ['keyword', 'opcode', 'operator', 'identifier'];
+    const tokenModifiers = ['declaration', 'documentation'];
+    const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
+    const p = vscode.languages.registerDocumentSemanticTokensProvider(
+        'backslash',
+        {
+            provideDocumentSemanticTokens(document, token) {
+                const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
+                const lexer = new Lexer(document.getText());
+                /** @type {vscode.Diagnostic[]} */
+                const diagnostics = [];
+                let tokens;
+                try {
+                    tokens = lexer.tokenize()
+                } catch (error) {
+                    const range = new vscode.Range(
+                        doc.positionAt(lexer.position),
+                        doc.positionAt(lexer.position)
+                    );
+
+                    diagnostics.push({
+                        severity: vscode.DiagnosticSeverity.Error,
+                        range,
+                        message: `Lexing error: ${error}`,
+                        source: 'backslash',
+                    });
+                    console.error('uh oh, error')
+                    return tokensBuilder.build();
+                }
+                for (let i; i < tokens.length; i++) {
+                    /** @type {Token} */
+                    const token = tokens[i];
+                    const last = tokens[i-1]
+                    const definition = tokenTypeToVs[token.type]
+                    if (definition === false)
+                        continue;
+                    const [type, modifier] = typeof definition == 'function' ? definition(last) : definition;
+
+                    tokensBuilder.push(
+                        new vscode.Range(document.positionAt(token.start), document.positionAt(token.end)),
+                        type,
+                        [...(modifier??[])]
+                    );
+                }
+                console.log('yippee')
+                return tokensBuilder.build();
+            }
+        }
+    )
+
+    const selector = { language: 'backslash', scheme: 'file' }; // register for all Java documents from the local file system
+
+    vscode.languages.registerDocumentSemanticTokensProvider(selector, p, legend);
     console.log("uh")
 
     console.debug(provider)
