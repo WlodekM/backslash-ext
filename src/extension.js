@@ -134,7 +134,7 @@ function activate(context) {
         'backslash', // Match your language ID from package.json
         {
             provideCompletionItems(document, position, token, context) {
-                const np = position.translate(0, -1);
+                // const np = position.translate(0, -1);
                 let dict = Object.assign({}, blocks)
                 for (const extUrl of exts) {
                     Object.assign(dict, extBlocks.get(extUrl))
@@ -176,7 +176,10 @@ function activate(context) {
                     })
                 ].filter(a => a != null);
                 for (const vars of varStore.values()) {
-                    items.unshift(...vars.map(v => new vscode.CompletionItem(v, vscode.CompletionItemKind.Variable),))
+                    items.unshift(...vars.map(v => {
+                        const item = new vscode.CompletionItem(v, vscode.CompletionItemKind.Variable);
+                        return item;
+                    }) || [])
                 }
                 return items;
             }
@@ -240,7 +243,7 @@ function activate(context) {
         /** @type {vscode.Diagnostic[]} */
         const diagnostics = [];
 
-        const text = doc.getText();
+        const text = doc.getText().replace(/\/\/@ignore-checker\n(.*)/g, '\n');
         
         const lexer = new Lexer(text);
         
