@@ -1,11 +1,12 @@
 const vscode = require('vscode');
-const { readFileSync } = require("fs");
+const { readFileSync, existsSync } = require("fs");
 const path = require("path")
 const { Lexer, TokenType, Parser } = require('./tshv2/main.js');
-const { getNodeChildren } = require('./tshv2/getNodeChildren.js');
+// const { getNodeChildren } = require('./tshv2/getNodeChildren.js');
+const childProcess = require('node:child_process')
 
-const blocks = JSON.parse(readFileSync(path.join(__dirname, '../blocks.json')));
-console.log(Object.keys(blocks).length, blocks.control_forever)
+const defaultBlocks = JSON.parse(readFileSync(path.join(__dirname, '../blocks.json')));
+// console.log(Object.keys(blocks).length, blocks.control_forever)
 
 const extBlocks = new Map()
 let exts = []
@@ -129,7 +130,32 @@ function documentBlock(block, data, branches = false) {
 function activate(context) {
     /** @type {Map<string, string[]>} */
     const varStore = new Map();
+    let blocks = defaultBlocks;
+    // const ext = vscode.extensions.getExtension('backslash');
+    // if (ext) {
+    //     // ext.
+    //     vscode.workspace.config
+    // }
     console.log("AAAAA")
+    const config = vscode.workspace.getConfiguration('backslash');
+    const backslashPath = config.get('pathToBackslash');
+    uh:
+    if (backslashPath) {
+        if (!existsSync(backslashPath))
+            break uh;
+        if (!existsSync(path.join(backslashPath, 'getblocksjson.ts')))
+            break uh;
+        const scriptPath = path.join(backslashPath, 'getblocksjson.ts');
+        const result = childProcess.execSync(`deno -A ${scriptPath}`);
+        const r = result.toString('utf-8')
+        try {
+            const parsed = JSON.parse(r);
+            blocks = parsed;
+        } catch (error) {
+            console.error(error)
+        }
+    }
+    // console.log(, config.inspect('pathToBackslash'))
     const provider = vscode.languages.registerCompletionItemProvider(
         'backslash', // Match your language ID from package.json
         {

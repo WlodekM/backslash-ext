@@ -34,7 +34,18 @@
 				"scopeName": "source.backslash",
 				"path": "./syntaxes/backslash.tmLanguage.json"
 			}
-		]
+		],
+		"configuration": {
+			"title": "backslash",
+			"type": "object",
+			"properties": {
+				"backslash.pathToBackslash": {
+					"type": "string",
+					"default": "",
+					"description": "Path to backslash"
+				}
+			}
+		}
 	},
 	"completionItemProvider": [
 		{
