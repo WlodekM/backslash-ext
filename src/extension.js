@@ -139,12 +139,13 @@ function activate(context) {
     console.log("AAAAA")
     const config = vscode.workspace.getConfiguration('backslash');
     const backslashPath = config.get('pathToBackslash');
-    uh:
-    if (backslashPath) {
+    function getBlocksFromPath() {
+        if (!backslashPath)
+            return;
         if (!existsSync(backslashPath))
-            break uh;
+            return;
         if (!existsSync(path.join(backslashPath, 'getblocksjson.ts')))
-            break uh;
+            return;
         const scriptPath = path.join(backslashPath, 'getblocksjson.ts');
         const result = childProcess.execSync(`deno -A ${scriptPath}`);
         const r = result.toString('utf-8')
@@ -155,6 +156,12 @@ function activate(context) {
             console.error(error)
         }
     }
+    getBlocksFromPath();
+    vscode.workspace.onDidChangeConfiguration((e) => {
+        if (!e.affectsConfiguration('backslash.pathToBackslash'))
+            return;
+        getBlocksFromPath()
+    })
     // console.log(, config.inspect('pathToBackslash'))
     const provider = vscode.languages.registerCompletionItemProvider(
         'backslash', // Match your language ID from package.json
