@@ -11,6 +11,7 @@ const defaultBlocks = JSON.parse(readFileSync(path.join(__dirname, '../blocks.js
 const extBlocks = new Map()
 let exts = []
 globalThis.vsc = vscode
+let dictFormat = 'blockly'
 
 function datauri(str) {
     const encoder = new TextEncoder();
@@ -152,6 +153,7 @@ function activate(context) {
         try {
             const parsed = JSON.parse(r);
             blocks = parsed;
+            dictFormat = 'backslash';
         } catch (error) {
             console.error(error)
         }
@@ -172,6 +174,7 @@ function activate(context) {
                 for (const extUrl of exts) {
                     Object.assign(dict, extBlocks.get(extUrl))
                 }
+                // console.log(dictFormat, dict)
                 const items = [
                     new vscode.CompletionItem('if', vscode.CompletionItemKind.Keyword),
                     new vscode.CompletionItem('else', vscode.CompletionItemKind.Keyword),
@@ -181,7 +184,23 @@ function activate(context) {
                     new vscode.CompletionItem('true', vscode.CompletionItemKind.Constant),
                     new vscode.CompletionItem('false', vscode.CompletionItemKind.Constant),
                     ...Object.entries(dict).map(([block, data]) => {
-                        if (!block || block == undefined || block == 'undefined') return;
+                        if (!block || block == undefined || block == 'undefined') return console.log('uuhhmm');
+                        if (Array.isArray(data)) {
+                            const type = data[1];
+                            const args = data[0];
+                            if (type == 'branch') {
+                                const ci = new vscode.CompletionItem(block, vscode.CompletionItemKind.Keyword);
+                                ci.command = {
+                                    command: '',
+                                    title: '',
+                                }
+                                ci.insertText = new vscode.SnippetString(`${block}($0) ${
+                                    data[2].map((_,i) => `{\n\t$${i+1}\n}`).join(' ')
+                                }`);
+                                ci.documentation = documentBlock(block, data, true)
+                                return ci
+                            }
+                        }
                         const args = Object.keys(data)
                             .filter(a => a.startsWith('args'))
                             .map(n => data[n])
