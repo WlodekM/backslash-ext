@@ -123,6 +123,15 @@ function documentBlock(block, data, branches = false) {
     return `${category}.${name}(${(args[0] ?? []).map(a => `${a.name}: ${a.type}-${a.check ?? a.type}`).join(', ')})${''
     }${branches ? ' ' + branchfull.map(a => '{ }').join(' ') : ''}`
 }
+function documentBslBlock(block, data, branches = false) {
+    // return 'A'
+    const [category, ...the_rest] = block.split('_')
+    const name = the_rest.join("_")
+    const args = data[0]
+    const branchfull = data[2]
+    return `${category}.${name}(${(args ?? []).filter(arg=>arg).filter(a=>a.name).map(a => `${a.name}: ${a.blocklyType ?? 'unknown'}-${a.variableTypes1 ?? a.blocklyType ?? 'unknown'}`).join(', ')})${''
+    }${branches ? ' ' + branchfull.map(_ => '{ }').join(' ') : ''}`
+}
 
 /**
  * 
@@ -197,9 +206,29 @@ function activate(context) {
                                 ci.insertText = new vscode.SnippetString(`${block}($0) ${
                                     data[2].map((_,i) => `{\n\t$${i+1}\n}`).join(' ')
                                 }`);
-                                ci.documentation = documentBlock(block, data, true)
+                                try {
+                                    ci.documentation = documentBslBlock(block, data, true)
+                                } catch (error) {
+                                    console.error(error)
+                                    ci.documentation = String(error)
+                                }
                                 return ci
                             }
+                            const ci = new vscode.CompletionItem(block, vscode.CompletionItemKind.Function);
+                            ci.command = {
+                                command: '',
+                                title: '',
+                            }
+                            ci.insertText = new vscode.SnippetString(`${block}($0)`);
+                            // console.log('meow', block)
+                            try {
+                                ci.documentation = documentBslBlock(block, data, false)
+                            } catch (error) {
+                                console.error(error)
+                                ci.documentation = String(error)
+                            }
+                            // console.log('mrrp', ci.documentation)
+                            return ci
                         }
                         const args = Object.keys(data)
                             .filter(a => a.startsWith('args'))
@@ -465,6 +494,8 @@ function activate(context) {
             Object.assign(dict, extBlocks.get(extUrl))
         }
         const data = dict[block]
+        if (Array.isArray(data))
+            return documentBslBlock(block, data, data[1] == 'branch')
         const args = Object.keys(data)
             .filter(a => a.startsWith('args'))
             .map(n => data[n])
