@@ -236,7 +236,7 @@ class Parser {
         this.source = source;
     }
     peek(ahead = 0) {
-        return this.tokens[this.position + ahead];
+        return this.tokens[this.position + ahead] ?? this.tokens[this.tokens.length-1];
     }
     advance() {
         return this.tokens[this.position++];
@@ -313,7 +313,7 @@ class Parser {
             this.expect(TokenType.ASSIGN, "Expected '=' after list name");
             const value = [];
             this.expect(TokenType.LBRACE, "Expected {array} as list value");
-            while (!this.match(TokenType.RBRACE) || this.match(TokenType.EOF)) {
+            while (!this.match(TokenType.RBRACE, TokenType.EOF)) {
                 value.push(this.parsePrimary());
                 this.match(TokenType.COMMA);
             }
