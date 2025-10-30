@@ -59,7 +59,7 @@
 				},
 				{
 					"name": "keyword.other",
-					"match": "\\b(var|list|global)\\b"
+					"match": "\\b(var|list|global|start)\\b"
 				},
 				{
 					"name": "entity.name.function",
