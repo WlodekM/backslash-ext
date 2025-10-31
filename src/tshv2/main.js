@@ -1,7 +1,8 @@
 "use strict";
-// import { timestamp } from "https://jsr.io/@std/yaml/1.0.6/_type/timestamp.ts";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Parser = exports.Lexer = exports.TokenType = void 0;
+// import { timestamp } from "https://jsr.io/@std/yaml/1.0.6/_type/timestamp.ts";
+//TODO - add explicit arg/field defintion
 // Token types
 var TokenType;
 (function (TokenType) {
@@ -29,12 +30,15 @@ var TokenType;
     TokenType["NOT"] = "NOT";
     TokenType["RETURN"] = "RETURN";
     TokenType["ASSIGNBINOP"] = "ASSIGNBINOP";
+    TokenType["LBRACKET"] = "LBRAKET";
+    TokenType["RBRACKET"] = "RBRAKET";
+    TokenType["COLON_THINGY"] = "COLON_THINGY";
 })(TokenType || (exports.TokenType = TokenType = {}));
 // Lexer
 class Lexer {
+    source;
+    position = 0;
     constructor(source) {
-        this.position = 0;
-        this.tokens = [];
         this.source = source;
     }
     isAlpha(char) {
@@ -60,15 +64,15 @@ class Lexer {
         return false;
     }
     pushToken(tokenData) {
-        var _a;
         // console.log(tokenData, this.position)
         const fullToken = {
-            start: (_a = tokenData.start) !== null && _a !== void 0 ? _a : this.position,
+            start: tokenData.start ?? this.position,
             ...tokenData,
             end: tokenData.start ? this.position : this.position + 1
         };
         this.tokens.push(fullToken);
     }
+    tokens = [];
     tokenize() {
         this.tokens = [];
         let inComment = false;
@@ -99,31 +103,31 @@ class Lexer {
                     identifier += this.advance();
                 }
                 if (identifier.toLowerCase() === "#include")
-                    this.pushToken({ line, start, type: TokenType.INCLUDE, value: identifier });
+                    this.pushToken({ line, type: TokenType.INCLUDE, value: identifier });
                 else if (identifier === 'return')
-                    this.pushToken({ line, start, type: TokenType.RETURN, value: identifier });
+                    this.pushToken({ line, type: TokenType.RETURN, value: identifier });
                 else if (identifier === "var")
-                    this.pushToken({ line, start, type: TokenType.VAR, value: global > 0 ? 'global' : identifier });
+                    this.pushToken({ line, type: TokenType.VAR, value: global > 0 ? 'global' : identifier });
                 else if (identifier === "list")
-                    this.pushToken({ line, start, type: TokenType.LIST, value: global > 0 ? 'global' : identifier });
+                    this.pushToken({ line, type: TokenType.LIST, value: global > 0 ? 'global' : identifier });
                 else if (identifier === "global")
                     global = 3;
                 else if (identifier === "fn")
-                    this.pushToken({ line, start, type: TokenType.FN, value: identifier });
+                    this.pushToken({ line, type: TokenType.FN, value: identifier });
                 else if (identifier === "warp")
-                    this.pushToken({ line, start, type: TokenType.WARP_FN, value: identifier });
+                    this.pushToken({ line, type: TokenType.WARP_FN, value: identifier });
                 else if (identifier === "if")
-                    this.pushToken({ line, start, type: TokenType.IF, value: identifier });
+                    this.pushToken({ line, type: TokenType.IF, value: identifier });
                 else if (identifier === "for")
-                    this.pushToken({ line, start, type: TokenType.FOR, value: identifier });
+                    this.pushToken({ line, type: TokenType.FOR, value: identifier });
                 else if (identifier === "gf")
-                    this.pushToken({ line, start, type: TokenType.GREENFLAG, value: identifier });
+                    this.pushToken({ line, type: TokenType.GREENFLAG, value: identifier });
                 else if (identifier === "start")
-                    this.pushToken({ line, start, type: TokenType.GREENFLAG, value: identifier });
+                    this.pushToken({ line, type: TokenType.GREENFLAG, value: identifier });
                 else if (identifier === "else")
-                    this.pushToken({ line, start, type: TokenType.ELSE, value: identifier });
+                    this.pushToken({ line, type: TokenType.ELSE, value: identifier });
                 else
-                    this.pushToken({ line, start, type: TokenType.IDENTIFIER, value: identifier });
+                    this.pushToken({ line, type: TokenType.IDENTIFIER, value: identifier });
             }
             else if (this.isDigit(char)) {
                 let number = char;
@@ -131,7 +135,7 @@ class Lexer {
                 while (this.isDigit(this.peek())) {
                     number += this.advance();
                 }
-                this.pushToken({ line, start, type: TokenType.NUMBER, value: number });
+                this.pushToken({ line, type: TokenType.NUMBER, value: number });
             }
             else if (char === '"') {
                 start = this.position;
@@ -144,7 +148,7 @@ class Lexer {
                 if (!this.match('"')) {
                     throw new Error("Unterminated string");
                 }
-                this.pushToken({ line, start, type: TokenType.STRING, value: string });
+                this.pushToken({ line, type: TokenType.STRING, value: string });
             }
             else if (char === "(")
                 this.pushToken({ line, type: TokenType.LPAREN, value: char });
@@ -154,8 +158,16 @@ class Lexer {
                 this.pushToken({ line, type: TokenType.LBRACE, value: char });
             else if (char === "}")
                 this.pushToken({ line, type: TokenType.RBRACE, value: char });
+            else if (char === "[")
+                this.pushToken({ line, type: TokenType.LBRACKET, value: char });
+            else if (char === "]")
+                this.pushToken({ line, type: TokenType.RBRACKET, value: char });
             else if (char === ",")
                 this.pushToken({ line, type: TokenType.COMMA, value: char });
+            else if (char === ":" && this.peek() === ':') {
+                this.pushToken({ line, type: TokenType.COLON_THINGY, value: '+=' });
+                this.advance();
+            }
             else if (char === "+" && this.peek() === '=') {
                 this.pushToken({ line, type: TokenType.ASSIGNBINOP, value: '+=' });
                 this.advance();
@@ -215,28 +227,42 @@ class Lexer {
             else if (char === "!")
                 this.pushToken({ line, type: TokenType.NOT, value: char });
             else {
-                throw new Error(`Unexpected character: ${char}`);
-                // throw new Error(`Unexpected character: ${char} on line ${line+1}\n${
-                // 	this.source.split('').filter((_,i)=>Math.abs(i-this.position) <= 6).join('')
-                // }\n     ^`);
+                throw new Error(`Unexpected character: ${char} on line ${line + 1}\n${this.source.split('').filter((_, i) => Math.abs(i - this.position) <= 6).join('')}\n     ^`);
             }
         }
-        this.pushToken({ line, start, type: TokenType.EOF, value: "" });
+        this.pushToken({ line, type: TokenType.EOF, value: "" });
         return this.tokens;
     }
 }
 exports.Lexer = Lexer;
 // Parser
 class Parser {
+    tokens;
+    source;
+    position = 0;
+    localVars = [];
+    globalVars = [];
+    traces = true;
     constructor(tokens, source) {
-        this.position = 0;
-        this.localVars = [];
-        this.globalVars = [];
         this.tokens = tokens;
         this.source = source;
     }
     peek(ahead = 0) {
-        return this.tokens[this.position + ahead] ?? this.tokens[this.tokens.length-1];
+        return this.tokens[this.position + ahead];
+    }
+    trace(error, line) {
+        if (!this.traces)
+            return error;
+        return this.source.split('\n')
+            .map(l => l.replace(/^\s*/, ''))
+            .map((t, l) => `${l + 1} | ${t}`)
+            .map((t, l) => {
+            if (l != line)
+                return t;
+            return `${t}\n${' '.repeat(l.toString().length)} | ^ ${error}`;
+        })
+            .filter((_, l) => Math.abs(l - line) < 4)
+            .join('\n');
     }
     advance() {
         return this.tokens[this.position++];
@@ -258,34 +284,36 @@ class Parser {
         if (this.peek().type === type) {
             return this.advance();
         }
-        let ch = 0;
-        const line = (this.source.split('\n')
-            .map((l, i) => {
-            ch += l.length;
-            return {
-                start: ch - l.length,
-                len: l.length,
-                i,
-                l,
-            };
-        })
-            .find((l) => l.start <= this.position
-            && l.start + l.len >= this.position));
-        const positionInLine = this.position - (line ? (line.start) : 0);
-        // if (line)
-        // 	positionInLine - (line.l.length - line.l.replace(/^\s*/,'').length)
-        // console.error('trace: tokens', this.tokens, '\nIDX:', this.position);
-        throw new Error(errorMessage);
-        const trace = this.source.split('\n')
-            .map(l => l.replace(/^\s*/, ''))
-            .map((t, l) => `${l + 1} | ${t}`)
-            .map((t, l) => {
-            if (l != this.peek().line)
-                return t;
-            return `${t}\n${' '.repeat(l.toString().length)} |${' '.repeat(positionInLine)}^ ${errorMessage}`;
-        })
-            .filter((_, l) => Math.abs(l - this.peek().line) < 4);
-        throw new Error('\n' + trace.join('\n'));
+        // let ch = 0;
+        // const line = 
+        // 	(this.source.split('\n')
+        // 		.map((l, i) => {
+        // 			ch += l.length
+        // 			return {
+        // 				start: ch - l.length,
+        // 				len: l.length,
+        // 				i,
+        // 				l,
+        // 			}
+        // 		})
+        // 		.find((l) => l.start <= this.position
+        // 			&& l.start + l.len >= this.position))
+        // const positionInLine = this.position - (line ? (
+        // 	line.start
+        // ) : 0);
+        // // if (line)
+        // // 	positionInLine - (line.l.length - line.l.replace(/^\s*/,'').length)
+        // // console.error('trace: tokens', this.tokens, '\nIDX:', this.position);
+        // const trace = this.source.split('\n')
+        // 	.map(l => l.replace(/^\s*/, ''))
+        // 	.map((t, l) => `${l+1} | ${t}`)
+        // 	.map((t, l) => {
+        // 		if (l != this.peek().line)
+        // 			return t;
+        // 		return `${t}\n${' '.repeat(l.toString().length)} |${' '.repeat(positionInLine)}^ ${errorMessage}`
+        // 	})
+        // 	.filter((_, l) => Math.abs(l - this.peek().line) < 4)
+        throw new Error(this.trace(errorMessage, this.peek().line));
     }
     parse() {
         const nodes = [];
@@ -442,7 +470,8 @@ class Parser {
         }
         return expr;
     }
-    finishCall(callee) {
+    finishCall(callee, allowBranch = true) {
+        // console.log(this.peek())
         this.expect(TokenType.LPAREN, "Expected '(' after function name");
         const args = [];
         if (this.peek().type !== TokenType.RPAREN) {
@@ -452,6 +481,8 @@ class Parser {
         }
         this.expect(TokenType.RPAREN, "Expected ')' after arguments");
         if (this.peek().type === TokenType.LBRACE) {
+            if (!allowBranch)
+                throw 'Branch function calls are not allowed in the current context';
             const branches = [];
             do {
                 this.expect(TokenType.LBRACE, "Expected '{' for branch block");
@@ -480,7 +511,17 @@ class Parser {
             return { type: "Literal", value: Number(token.value) };
         }
         if (this.match(TokenType.STRING)) {
-            return { type: "Literal", value: token.value };
+            return { type: "Literal", value: token.value.replace(/\\(.)/g, (m, s) => {
+                    if (s == '\\')
+                        return '\\';
+                    if (s == '"')
+                        return '"';
+                    if (s == 'n')
+                        return '\n';
+                    if (s == 'r')
+                        return '\r';
+                    return m;
+                }) };
         }
         if (this.match(TokenType.IDENTIFIER) && allowOther) {
             if (["True", "true", "False", "false"].includes(token.value)) {
@@ -489,7 +530,30 @@ class Parser {
                     value: token.value === "True" || token.value === "true"
                 };
             }
-            return { type: "Identifier", name: token.value };
+            let returnValue = {
+                type: "Identifier",
+                name: token.value
+            };
+            while (this.matchTk([TokenType.COLON_THINGY])) {
+                this.advance();
+                const identifier = this.expect(TokenType.IDENTIFIER, "Expected identifier after OOP dereferencer");
+                if (this.matchTk([TokenType.LPAREN])) {
+                    const fnCallNode = this.finishCall(returnValue, false);
+                    returnValue = {
+                        object: returnValue,
+                        type: 'ObjectMethodCall',
+                        args: fnCallNode.args,
+                        method: identifier.value
+                    };
+                    continue;
+                }
+                returnValue = {
+                    object: returnValue,
+                    property: identifier.value,
+                    type: 'ObjectAccess'
+                };
+            }
+            return returnValue;
         }
         if (this.match(TokenType.LPAREN) && allowOther) {
             const expr = this.parseAssignment();
@@ -505,17 +569,7 @@ class Parser {
             };
             return { type: "BinaryExpression", operator, left, right };
         }
-        throw new Error(`Unexpected token: ${token.type}`);
-        const trace = this.source.split('\n')
-            .map(l => l.replace(/^\s*/, ''))
-            .map((t, l) => `${l + 1} | ${t}`)
-            .map((t, l) => {
-            if (l != token.line)
-                return t;
-            return `${t}\n${' '.repeat(l.toString().length)} | ^ Unexpected token: ${token.type}`;
-        })
-            .filter((_, l) => Math.abs(l - token.line) < 4);
-        throw new Error('\n' + trace.join('\n'));
+        throw new Error(this.trace(`Unexpected token: ${token.type}`, token.line));
     }
 }
 exports.Parser = Parser;

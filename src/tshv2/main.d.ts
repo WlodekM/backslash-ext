@@ -22,7 +22,10 @@ export declare enum TokenType {
     LIST = "LIST",
     NOT = "NOT",
     RETURN = "RETURN",
-    ASSIGNBINOP = "ASSIGNBINOP"
+    ASSIGNBINOP = "ASSIGNBINOP",
+    LBRACKET = "LBRAKET",
+    RBRACKET = "RBRAKET",
+    COLON_THINGY = "COLON_THINGY"
 }
 export interface Token {
     type: TokenType;
@@ -50,6 +53,7 @@ export declare class Lexer {
     tokens: Token[];
     tokenize(): Token[];
 }
+export type NodeType = "VariableDeclaration" | "FunctionDeclaration" | "Assignment" | "BinaryExpression" | "Not" | "Literal" | "Identifier" | "FunctionCall" | "BranchFunctionCall" | "StartBlock" | "If" | "For" | "GreenFlag" | "Boolean" | "Include" | "ListDeclaration" | "Return" | "ObjectAccess" | "ObjectMethodCall";
 export interface ASTNode {
     type: string;
 }
@@ -140,14 +144,28 @@ export interface ReturnNode extends ASTNode {
     type: "Return";
     value: ASTNode;
 }
+export interface ObjectAccessNode extends ASTNode {
+    type: "ObjectAccess";
+    object: ASTNode;
+    property: string;
+}
+export interface ObjectMethodCallNode extends ASTNode {
+    type: "ObjectMethodCall";
+    object: ASTNode;
+    method: string;
+    args: ASTNode[];
+}
+export type Node = VariableDeclarationNode | FunctionDeclarationNode | AssignmentNode | BinaryExpressionNode | NotNode | LiteralNode | IdentifierNode | FunctionCallNode | BranchFunctionCallNode | StartBlockNode | IfNode | ForNode | GreenFlagNode | BooleanNode | IncludeNode | ListDeclarationNode | ReturnNode | ObjectAccessNode | ObjectMethodCallNode;
 export declare class Parser {
     private tokens;
     private source;
     position: number;
     localVars: string[];
     globalVars: string[];
+    traces: boolean;
     constructor(tokens: Token[], source: string);
     private peek;
+    private trace;
     private advance;
     private match;
     private matchTk;
