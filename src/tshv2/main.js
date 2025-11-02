@@ -206,6 +206,10 @@ class Lexer {
                 this.pushToken({ line, type: TokenType.BINOP, value: char });
                 this.advance();
             }
+            else if (char === "|" && this.peek() === '|') {
+                this.pushToken({ line, type: TokenType.BINOP, value: char });
+                this.advance();
+            }
             else if (char === "!" && this.peek() === '=') {
                 this.pushToken({ line, type: TokenType.BINOP, value: '!=' });
                 this.advance();
@@ -429,7 +433,7 @@ class Parser {
                 body: this.parseAssignment(),
             };
         }
-        const expr = this.parseBinaryExpression();
+        let expr = this.parseBinaryExpression();
         if (this.match(TokenType.ASSIGN)) {
             if (expr.type !== "Identifier")
                 throw new Error("Invalid assignment target; expected an identifier");
@@ -468,6 +472,25 @@ class Parser {
         while (this.peek().type === TokenType.LPAREN) {
             expr = this.finishCall(expr);
         }
+        while (this.matchTk([TokenType.COLON_THINGY])) {
+            this.advance();
+            const identifier = this.expect(TokenType.IDENTIFIER, "Expected identifier after OOP dereferencer");
+            if (this.matchTk([TokenType.LPAREN])) {
+                const fnCallNode = this.finishCall(expr, false);
+                expr = {
+                    object: expr,
+                    type: 'ObjectMethodCall',
+                    args: fnCallNode.args,
+                    method: identifier.value
+                };
+                continue;
+            }
+            expr = {
+                object: expr,
+                property: identifier.value,
+                type: 'ObjectAccess'
+            };
+        }
         return expr;
     }
     finishCall(callee, allowBranch = true) {
@@ -497,8 +520,8 @@ class Parser {
                 branches,
             };
         }
-        if (callee.type !== "Identifier")
-            throw new Error("Function call expects an identifier");
+        if (callee.type !== "Identifier" && callee.type !== 'ObjectAccess' && callee.type !== 'ObjectMethodCall')
+            throw new Error("Function call expects an identifier, objectaccess or objectmethodcall");
         return {
             type: "FunctionCall",
             identifier: callee.name,
@@ -530,30 +553,10 @@ class Parser {
                     value: token.value === "True" || token.value === "true"
                 };
             }
-            let returnValue = {
+            return {
                 type: "Identifier",
                 name: token.value
             };
-            while (this.matchTk([TokenType.COLON_THINGY])) {
-                this.advance();
-                const identifier = this.expect(TokenType.IDENTIFIER, "Expected identifier after OOP dereferencer");
-                if (this.matchTk([TokenType.LPAREN])) {
-                    const fnCallNode = this.finishCall(returnValue, false);
-                    returnValue = {
-                        object: returnValue,
-                        type: 'ObjectMethodCall',
-                        args: fnCallNode.args,
-                        method: identifier.value
-                    };
-                    continue;
-                }
-                returnValue = {
-                    object: returnValue,
-                    property: identifier.value,
-                    type: 'ObjectAccess'
-                };
-            }
-            return returnValue;
         }
         if (this.match(TokenType.LPAREN) && allowOther) {
             const expr = this.parseAssignment();

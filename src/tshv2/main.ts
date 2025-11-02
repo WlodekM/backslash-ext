@@ -200,6 +200,10 @@ export class Lexer {
 				this.pushToken({ line, type: TokenType.BINOP, value: char });
 				this.advance();
 			}
+			else if (char === "|" && this.peek() === '|') {
+				this.pushToken({ line, type: TokenType.BINOP, value: char });
+				this.advance();
+			}
 			else if (char === "!" && this.peek() === '=') {
 				this.pushToken({ line, type: TokenType.BINOP, value: '!=' });
 				this.advance();
@@ -615,7 +619,7 @@ export class Parser {
 				body: this.parseAssignment(),
 			} as NotNode
 		}
-		const expr = this.parseBinaryExpression();
+		let expr = this.parseBinaryExpression();
 		if (this.match(TokenType.ASSIGN)) {
 			if (expr.type !== "Identifier")
 				throw new Error("Invalid assignment target; expected an identifier");
@@ -658,6 +662,25 @@ export class Parser {
 		while (this.peek().type === TokenType.LPAREN) {
 			expr = this.finishCall(expr);
 		}
+		while (this.matchTk([TokenType.COLON_THINGY])) {
+			this.advance();
+			const identifier = this.expect(TokenType.IDENTIFIER, "Expected identifier after OOP dereferencer");
+			if (this.matchTk([TokenType.LPAREN])) {
+				const fnCallNode = this.finishCall(expr, false);
+				expr = {
+					object: expr,
+					type: 'ObjectMethodCall',
+					args: fnCallNode.args,
+					method: identifier.value
+				} as ObjectMethodCallNode
+				continue;
+			}
+			expr = {
+				object: expr,
+				property: identifier.value,
+				type: 'ObjectAccess'
+			} as ObjectAccessNode
+		}
 		return expr;
 	}
 
@@ -695,8 +718,8 @@ export class Parser {
 		}
 
 
-		if (callee.type !== "Identifier")
-			throw new Error("Function call expects an identifier");
+		if (callee.type !== "Identifier" && callee.type !== 'ObjectAccess' && callee.type !== 'ObjectMethodCall')
+			throw new Error("Function call expects an identifier, objectaccess or objectmethodcall");
 		return {
 			type: "FunctionCall",
 			identifier: (callee as IdentifierNode).name,
@@ -732,30 +755,10 @@ export class Parser {
 					value: token.value === "True" || token.value === "true"
 				} as BooleanNode;
 			}
-			let returnValue: IdentifierNode | ObjectAccessNode | ObjectMethodCallNode = {
+			return {
 				type: "Identifier",
 				name: token.value
-			} as IdentifierNode
-			while (this.matchTk([TokenType.COLON_THINGY])) {
-				this.advance();
-				const identifier = this.expect(TokenType.IDENTIFIER, "Expected identifier after OOP dereferencer");
-				if (this.matchTk([TokenType.LPAREN])) {
-					const fnCallNode = this.finishCall(returnValue, false);
-					returnValue = {
-						object: returnValue,
-						type: 'ObjectMethodCall',
-						args: fnCallNode.args,
-						method: identifier.value
-					} as ObjectMethodCallNode
-					continue;
-				}
-				returnValue = {
-					object: returnValue,
-					property: identifier.value,
-					type: 'ObjectAccess'
-				} as ObjectAccessNode
-			}
-			return returnValue;
+			} as IdentifierNode;
 		}
 
 		if (this.match(TokenType.LPAREN) && allowOther) {
