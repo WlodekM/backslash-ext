@@ -162,6 +162,8 @@ export declare class Parser {
     position: number;
     localVars: string[];
     globalVars: string[];
+    localLists: string[];
+    globalLists: string[];
     traces: boolean;
     constructor(tokens: Token[], source: string);
     private peek;

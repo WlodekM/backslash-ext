@@ -246,6 +246,8 @@ class Parser {
     position = 0;
     localVars = [];
     globalVars = [];
+    localLists = [];
+    globalLists = [];
     traces = true;
     constructor(tokens, source) {
         this.tokens = tokens;
@@ -342,6 +344,10 @@ class Parser {
         if (this.match(TokenType.LIST)) {
             const type = this.peek(-1).value;
             const identifier = this.expect(TokenType.IDENTIFIER, "Expected list name").value;
+            if (type == 'global')
+                this.globalLists.push(identifier);
+            else
+                this.localLists.push(identifier);
             this.expect(TokenType.ASSIGN, "Expected '=' after list name");
             const value = [];
             this.expect(TokenType.LBRACE, "Expected {array} as list value");

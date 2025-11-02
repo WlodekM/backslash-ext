@@ -59,5 +59,8 @@
 	],
 	"__metadata": {
 		"size": 84591
+	},
+	"dependencies": {
+		"@types/vscode": "^1.105.0"
 	}
 }

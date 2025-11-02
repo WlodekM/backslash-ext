@@ -5,6 +5,7 @@ const { Lexer, TokenType, Parser } = require('./tshv2/main.js');
 // const { getNodeChildren } = require('./tshv2/getNodeChildren.js');
 const childProcess = require('node:child_process')
 
+const selector = { language: 'backslash', scheme: 'file' };
 const defaultBlocks = JSON.parse(readFileSync(path.join(__dirname, '../blocks.json')));
 // console.log(Object.keys(blocks).length, blocks.control_forever)
 
@@ -138,8 +139,11 @@ function documentBslBlock(block, data, branches = false) {
  * @param {vscode.ExtensionContext} context 
  */
 function activate(context) {
-    /** @type {Map<string, string[]>} */
+    /** @typedef {"var" | "list"} VarType */
+    /** @type {Map<string, [string, VarType, "local"][]>} */
     const varStore = new Map();
+    /** @type {Map<string, [string, VarType, "global", string][]>} */
+    const global_varStore = new Map();
     let blocks = defaultBlocks;
     // const ext = vscode.extensions.getExtension('backslash');
     // if (ext) {
@@ -175,14 +179,80 @@ function activate(context) {
     })
     // console.log(, config.inspect('pathToBackslash'))
     const provider = vscode.languages.registerCompletionItemProvider(
-        'backslash', // Match your language ID from package.json
+        selector, // Match your language ID from package.json
         {
             provideCompletionItems(document, position, token, context) {
+                if (!varStore.has(document.uri.toString()))
+                    updateDiagnostics(document, new Map())
+                if (context.triggerKind == vscode.CompletionTriggerKind.TriggerCharacter) {
+                    const line = document.lineAt(position);
+                    const textBefore = line.text.slice(0, position.character);
+
+                    if (!textBefore.endsWith('::')) return [];
+
+                    const items = [
+                        new vscode.CompletionItem('str_length', vscode.CompletionItemKind.Method),
+                        new vscode.CompletionItem('letter', vscode.CompletionItemKind.Method),
+                        new vscode.CompletionItem('join', vscode.CompletionItemKind.Method),
+                    ]
+
+                    let varname = '';
+
+                    let i = 3;
+
+                    while (/[a-zA-Z_#]|-?[\d\.]/.test(textBefore.at(-i))) {
+                        varname=textBefore.at(-i)+varname
+                        i++
+                    }
+
+                    const varData = [...varStore.values()].flat(1)
+                        .find(([v])=>v==varname);
+
+                    console.log(varname, [...varStore.values()].flat(1), varData, 'meow meow meow meow')
+                    if (!varData)
+                        return items;
+
+                    // items.push(new vscode.CompletionItem(varname))
+
+                    if (varData[1] == 'list') {
+                        items.push(
+                            ...([
+                                'push',
+                                'replace',
+                                'remove',
+                                'insert',
+                                'clear',
+                                'at',
+                                'indexof',
+                                'contains'
+                            ].map(n => {
+                                const i = new vscode.CompletionItem(n, vscode.CompletionItemKind.Method)
+                                i.insertText = new vscode.SnippetString(`${n}($0)`);
+                                i.documentation = `method for \`${varData[1]}\` variables`
+                                return i
+                            })),
+                            ...([
+                                'length',
+                                'json',
+                                'initial_json',
+                                'id'
+                            ].map(n => {
+                                const i = new vscode.CompletionItem(n, vscode.CompletionItemKind.Method)
+                                i.insertText = new vscode.SnippetString(`${n}($0)`);
+                                i.documentation = `method for \`${varData[1]}\` variables`
+                                return i
+                            }))
+                        )
+                    }
+
+                    return items
+                }
                 // const np = position.translate(0, -1);
                 let dict = Object.assign({}, blocks)
                 for (const extUrl of exts) {
                     Object.assign(dict, extBlocks.get(extUrl))
                 }
+                
                 // console.log(dictFormat, dict)
                 const items = [
                     new vscode.CompletionItem('if', vscode.CompletionItemKind.Keyword),
@@ -256,23 +326,36 @@ function activate(context) {
                         return ci
                     })
                 ].filter(a => a != null);
-                for (const vars of varStore.values()) {
-                    items.unshift(...vars.map(v => {
-                        const item = new vscode.CompletionItem(v, vscode.CompletionItemKind.Variable);
+                for (const vars of [varStore.get(document.uri.toString()) ?? [], ...global_varStore.values()]) {
+                    items.unshift(...vars.map(([variable, type, scope, source]) => {
+                        const item = new vscode.CompletionItem(variable, {
+                            var: vscode.CompletionItemKind.Variable,
+                            list: vscode.CompletionItemKind.Constant,
+                        }[type]);
+                        item.documentation = `${scope} ${type}${source ? ` from ${source}` : ''}`
+                        item.sortText = `_${variable}`
                         return item;
                     }) || [])
                 }
+				// for (const vars of ) {
+				// 	items.unshift(...vars.map(v => {
+				// 		const item = new vscode.CompletionItem(v, vscode.CompletionItemKind.Variable);
+				// 		return item;
+				// 	}) || [])
+				// }
                 return items;
             }
         },
-        '' // Triggers on any character; you can set this to a trigger character like '.' or ':'
+        '', ':' // Triggers on any character; you can set this to a trigger character like '.' or ':'
     );
     vscode.workspace.onDidOpenTextDocument(doc => {
+        global_varStore.set(doc.uri.toString(), []);
         varStore.set(doc.uri.toString(), []);
         updateDiagnostics(doc, collection)
     });
 
     vscode.workspace.onDidCloseTextDocument(doc => {
+        global_varStore.delete(doc.uri.toString())
         varStore.delete(doc.uri.toString());
     });
     // function findVars(ast, doc) {
@@ -369,8 +452,14 @@ function activate(context) {
             return;
         }
 
-        varStore.set(doc.uri.toString(), parser.localVars);
-        //TODO - global vars
+        varStore.set(doc.uri.toString(), [
+            ...parser.localVars.map(v => [v, 'var', 'local']),
+            ...parser.localLists.map(v => [v, 'list', 'local'])
+        ]);
+        global_varStore.set(doc.uri.toString(), [
+            ...parser.globalVars.map(v => [v, 'var', 'global', doc.fileName]),
+            ...parser.globalLists.map(v => [v, 'list', 'global', doc.fileName])
+        ]);
 
         collection.set(doc.uri, diagnostics);
     }
@@ -426,56 +515,55 @@ function activate(context) {
     const tokenTypes = ['keyword', 'opcode', 'operator', 'identifier'];
     const tokenModifiers = ['declaration', 'documentation'];
     const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
-    const p = vscode.languages.registerDocumentSemanticTokensProvider(
-        'backslash',
-        {
-            provideDocumentSemanticTokens(document, token) {
-                const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
-                const lexer = new Lexer(document.getText());
-                /** @type {vscode.Diagnostic[]} */
-                const diagnostics = [];
-                let tokens;
-                try {
-                    tokens = lexer.tokenize()
-                } catch (error) {
-                    const range = new vscode.Range(
-                        doc.positionAt(lexer.position),
-                        doc.positionAt(lexer.position)
-                    );
+    const _provider = {
+        provideDocumentSemanticTokens(document, token) {
+            const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
+            const lexer = new Lexer(document.getText());
+            /** @type {vscode.Diagnostic[]} */
+            const diagnostics = [];
+            let tokens;
+            try {
+                tokens = lexer.tokenize()
+            } catch (error) {
+                const range = new vscode.Range(
+                    doc.positionAt(lexer.position),
+                    doc.positionAt(lexer.position)
+                );
 
-                    diagnostics.push({
-                        severity: vscode.DiagnosticSeverity.Error,
-                        range,
-                        message: `Lexing error: ${error}`,
-                        source: 'backslash',
-                    });
-                    console.error('uh oh, error')
-                    return tokensBuilder.build();
-                }
-                for (let i; i < tokens.length; i++) {
-                    /** @type {Token} */
-                    const token = tokens[i];
-                    const last = tokens[i-1]
-                    const definition = tokenTypeToVs[token.type]
-                    if (definition === false)
-                        continue;
-                    const [type, modifier] = typeof definition == 'function' ? definition(last) : definition;
-
-                    tokensBuilder.push(
-                        new vscode.Range(document.positionAt(token.start), document.positionAt(token.end)),
-                        type,
-                        [...(modifier??[])]
-                    );
-                }
-                console.log('yippee')
+                diagnostics.push({
+                    severity: vscode.DiagnosticSeverity.Error,
+                    range,
+                    message: `Lexing error: ${error}`,
+                    source: 'backslash',
+                });
+                console.error('uh oh, error')
                 return tokensBuilder.build();
             }
+            for (let i; i < tokens.length; i++) {
+                /** @type {Token} */
+                const token = tokens[i];
+                const last = tokens[i-1]
+                const definition = tokenTypeToVs[token.type]
+                if (definition === false)
+                    continue;
+                const [type, modifier] = typeof definition == 'function' ? definition(last) : definition;
+
+                tokensBuilder.push(
+                    new vscode.Range(document.positionAt(token.start), document.positionAt(token.end)),
+                    type,
+                    [...(modifier??[])]
+                );
+            }
+            console.log('yippee')
+            return tokensBuilder.build();
         }
+    }
+    const p = vscode.languages.registerDocumentSemanticTokensProvider(
+        selector,
+        _provider,
+        legend
     )
 
-    const selector = { language: 'backslash', scheme: 'file' }; // register for all Java documents from the local file system
-
-    vscode.languages.registerDocumentSemanticTokensProvider(selector, p, legend);
     console.log("uh")
 
     console.debug(provider)
@@ -509,7 +597,7 @@ function activate(context) {
         return documentBlock(block, data, false)
     }
     context.subscriptions.push(
-        vscode.languages.registerHoverProvider('backslash', {
+        vscode.languages.registerHoverProvider(selector, {
             provideHover(document, position, token) {
                 const word = document.getText(document.getWordRangeAtPosition(position));
                 
