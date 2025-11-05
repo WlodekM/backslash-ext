@@ -3,9 +3,14 @@
 	"displayName": "backslash.",
 	"description": "language support for backslash (tsh)",
 	"version": "0.0.1",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/WlodekM/backslash-ext"
+	},
 	"engines": {
 		"vscode": "^1.54.0"
 	},
+	"license": "MIT",
 	"categories": [
 		"Programming Languages"
 	],
