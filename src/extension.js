@@ -477,7 +477,7 @@ function activate(context) {
 	//     TokenType.IF
 	// ]
 	/** @typedef {"namespace" | "class" | "enum" | "interface" | "struct" | "typeParameter" | "type" | "parameter" | "variable" | "property" | "enumMember" | "decorator" | "event" | "function" | "method" | "macro" | "label" | "comment" | "string" | "keyword" | "number" | "regexp" | "operator"} vsTokenType*/
-	/** @type {Record<TokenType, [vsTokenType] | [vsTokenType, string] | false | (lastToken: TokenType | undefined) => ([vsTokenType, string] | [vsTokenType])} */
+	/** @type {Record<TokenType, [vsTokenType] | [vsTokenType, string] | false | (lastToken: TokenType | undefined, nextToken: TokenType | undefined) => ([vsTokenType, string] | [vsTokenType])} */
 	const tokenTypeToVs = {
 		ASSIGN: ['operator'],
 		ASSIGNBINOP: ['operator'],
@@ -494,6 +494,8 @@ function activate(context) {
 				return ['variable'];
 			if (last == TokenType.FN)
 				return ['function', 'declaration']
+			if (next == TokenType.LPAREN)
+				return ['function']
 			if (last != TokenType.VAR && last != TokenType.LIST)
 				return ['variable'];
 			return ['variable', 'declaration'];
@@ -543,10 +545,11 @@ function activate(context) {
 				/** @type {Token} */
 				const token = tokens[i];
 				const last = tokens[i-1]
+				const next = tokens[i+1]
 				const definition = tokenTypeToVs[token.type]
 				if (definition === false)
 					continue;
-				const [type, modifier] = typeof definition == 'function' ? definition(last) : definition;
+				const [type, modifier] = typeof definition == 'function' ? definition(last, next) : definition;
 
 				tokensBuilder.push(
 					new vscode.Range(document.positionAt(token.start), document.positionAt(token.end)),
