@@ -28,7 +28,8 @@
 					"backslash"
 				],
 				"extensions": [
-					".tsh", ".bsl"
+					".tsh", ".bsl",
+					"tsh", "bsl",
 				],
 				"configuration": "./language-configuration.json"
 			}
