@@ -158,10 +158,11 @@ function activate(context) {
 			return;
 		if (!existsSync(backslashPath))
 			return;
-		if (!existsSync(path.join(backslashPath, 'getblocksjson.ts')))
-			return;
-		const scriptPath = path.join(backslashPath, 'getblocksjson.ts');
-		const result = childProcess.execSync(`deno -A ${scriptPath}`);
+		// i think this works for changing the working dir
+		childProcess.execSync("pwd", {
+			cwd: backslashPath,
+		});
+		const result = childProcess.execSync(`deno task getblocksjson`);
 		const r = result.toString('utf-8')
 		try {
 			const parsed = JSON.parse(r);
