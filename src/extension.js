@@ -261,6 +261,7 @@ function activate(context) {
 					new vscode.CompletionItem('for', vscode.CompletionItemKind.Keyword),
 					new vscode.CompletionItem('while', vscode.CompletionItemKind.Keyword),
 					new vscode.CompletionItem('return', vscode.CompletionItemKind.Keyword),
+					new vscode.CompletionItem('on', vscode.CompletionItemKind.Keyword),
 					new vscode.CompletionItem('true', vscode.CompletionItemKind.Constant),
 					new vscode.CompletionItem('false', vscode.CompletionItemKind.Constant),
 					...Object.entries(dict).map(([block, data]) => {
@@ -547,7 +548,7 @@ function activate(context) {
 				const token = tokens[i];
 				const last = tokens[i-1]
 				const next = tokens[i+1]
-				const definition = tokenTypeToVs[token.type]
+				const definition = tokenTypeToVs[token.type] ?? ['keyword']
 				if (definition === false)
 					continue;
 				const [type, modifier] = typeof definition == 'function' ? definition(last, next) : definition;
