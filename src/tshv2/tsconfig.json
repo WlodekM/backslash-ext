@@ -1,0 +1,9 @@
+{
+	"compilerOptions": {
+		"module": "nodenext",
+		"lib": ["ES2022"],
+		"target": "es2022",
+		"declaration": true
+	},
+	"files": ["main.ts", "getNodeChildren.ts"]
+}

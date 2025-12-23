@@ -45,11 +45,11 @@
 				},
 				{
 					"name": "keyword.control",
-					"match": "\\b(fn)\\b"
+					"match": "(?i)\\b(fn)\\b"
 				},
 				{
 					"name": "keyword.other",
-					"match": "\\b(var|list|global|start|gf)\\b"
+					"match": "(?i)\\b(var|list|global|start|gf|for|in)\\b"
 				},
 				{
 					"name": "entity.name.function",
@@ -60,7 +60,7 @@
 					"match": "\\b(true|True|false|False)\\b"
 				},
 				{
-					"match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\b",
+					"match": "\\b'.*[^']'|([A-Za-z_][A-Za-z0-9_]*)\\b",
 					"name": "variable.other"
 				},
 				{

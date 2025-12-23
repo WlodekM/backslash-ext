@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getNodeChildren = getNodeChildren;
 function getNodeChildren(node) {
-    var _a;
     const children = [];
     let n;
     n = node;
@@ -39,7 +38,7 @@ function getNodeChildren(node) {
     }
     n = node;
     if (n.type == 'If') {
-        children.push(...n.thenBranch, ...((_a = n.elseBranch) !== null && _a !== void 0 ? _a : []), n.condition);
+        children.push(...n.thenBranch, ...(n.elseBranch ?? []), n.condition);
     }
     //FIXME - or this,, this sounds useful i really shoul implement it
     n = node;

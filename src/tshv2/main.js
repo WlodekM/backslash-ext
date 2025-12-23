@@ -23,7 +23,6 @@ var TokenType;
     TokenType["FOR"] = "FOR";
     TokenType["ELSE"] = "ELSE";
     TokenType["EOF"] = "EOF";
-    TokenType["GREATER"] = "GREATER";
     TokenType["GREENFLAG"] = "GREENFLAG";
     TokenType["INCLUDE"] = "INCLUDE";
     TokenType["LIST"] = "LIST";
@@ -33,6 +32,8 @@ var TokenType;
     TokenType["LBRACKET"] = "LBRAKET";
     TokenType["RBRACKET"] = "RBRAKET";
     TokenType["COLON_THINGY"] = "COLON_THINGY";
+    TokenType["ON"] = "ON";
+    TokenType["IN"] = "IN";
 })(TokenType || (exports.TokenType = TokenType = {}));
 // Lexer
 class Lexer {
@@ -78,6 +79,7 @@ class Lexer {
         let inComment = false;
         let global = 0;
         let line = 0;
+        // deno-lint-ignore no-unused-vars
         let start = 0;
         while (this.position < this.source.length) {
             const char = this.advance();
@@ -104,28 +106,32 @@ class Lexer {
                 }
                 if (identifier.toLowerCase() === "#include")
                     this.pushToken({ line, type: TokenType.INCLUDE, value: identifier });
-                else if (identifier === 'return')
+                else if (identifier.toLowerCase() === 'return')
                     this.pushToken({ line, type: TokenType.RETURN, value: identifier });
-                else if (identifier === "var")
+                else if (identifier.toLowerCase() === "var")
                     this.pushToken({ line, type: TokenType.VAR, value: global > 0 ? 'global' : identifier });
-                else if (identifier === "list")
+                else if (identifier.toLowerCase() === "list")
                     this.pushToken({ line, type: TokenType.LIST, value: global > 0 ? 'global' : identifier });
-                else if (identifier === "global")
+                else if (identifier.toLowerCase() === "global")
                     global = 3;
-                else if (identifier === "fn")
+                else if (identifier.toLowerCase() === "fn")
                     this.pushToken({ line, type: TokenType.FN, value: identifier });
-                else if (identifier === "warp")
+                else if (identifier.toLowerCase() === "warp")
                     this.pushToken({ line, type: TokenType.WARP_FN, value: identifier });
-                else if (identifier === "if")
+                else if (identifier.toLowerCase() === "if")
                     this.pushToken({ line, type: TokenType.IF, value: identifier });
-                else if (identifier === "for")
+                else if (identifier.toLowerCase() === "for")
                     this.pushToken({ line, type: TokenType.FOR, value: identifier });
-                else if (identifier === "gf")
+                else if (identifier.toLowerCase() === "gf")
                     this.pushToken({ line, type: TokenType.GREENFLAG, value: identifier });
-                else if (identifier === "start")
+                else if (identifier.toLowerCase() === "start")
                     this.pushToken({ line, type: TokenType.GREENFLAG, value: identifier });
-                else if (identifier === "else")
+                else if (identifier.toLowerCase() === "else")
                     this.pushToken({ line, type: TokenType.ELSE, value: identifier });
+                else if (identifier.toLowerCase() === "on")
+                    this.pushToken({ line, type: TokenType.ON, value: identifier });
+                else if (identifier.toLowerCase() === "in")
+                    this.pushToken({ line, type: TokenType.IN, value: identifier });
                 else
                     this.pushToken({ line, type: TokenType.IDENTIFIER, value: identifier });
             }
@@ -137,15 +143,30 @@ class Lexer {
                 }
                 this.pushToken({ line, type: TokenType.NUMBER, value: number });
             }
+            else if (char === "'") {
+                const quote = char;
+                start = this.position;
+                let identifier = "";
+                while (!((this.peek() == quote && this.peek(-1) !== '\\')
+                    || this.peek() == "")) {
+                    // console.log(this.position, this.peek(), this.peek(-1))
+                    identifier += this.advance();
+                }
+                if (!this.match(quote)) {
+                    throw new Error("Unterminated identifier");
+                }
+                this.pushToken({ line, type: TokenType.IDENTIFIER, value: identifier });
+            }
             else if (char === '"') {
+                const quote = char;
                 start = this.position;
                 let string = "";
-                while (!((this.peek() == '"' && this.peek(-1) !== '\\')
+                while (!((this.peek() == quote && this.peek(-1) !== '\\')
                     || this.peek() == "")) {
                     // console.log(this.position, this.peek(), this.peek(-1))
                     string += this.advance();
                 }
-                if (!this.match('"')) {
+                if (!this.match(quote)) {
                     throw new Error("Unterminated string");
                 }
                 this.pushToken({ line, type: TokenType.STRING, value: string });
@@ -165,7 +186,7 @@ class Lexer {
             else if (char === ",")
                 this.pushToken({ line, type: TokenType.COMMA, value: char });
             else if (char === ":" && this.peek() === ':') {
-                this.pushToken({ line, type: TokenType.COLON_THINGY, value: '+=' });
+                this.pushToken({ line, type: TokenType.COLON_THINGY, value: '::' });
                 this.advance();
             }
             else if (char === "+" && this.peek() === '=') {
@@ -286,8 +307,8 @@ class Parser {
         }
         return false;
     }
-    expect(type, errorMessage) {
-        if (this.peek().type === type) {
+    expect(type, errorMessage, not = false) {
+        if (not ? this.peek().type !== type : this.peek().type === type) {
             return this.advance();
         }
         // let ch = 0;
@@ -375,8 +396,11 @@ class Parser {
             if (!this.match(TokenType.RPAREN)) {
                 do {
                     params.push(this.expect(TokenType.IDENTIFIER, "Expected parameter name").value);
-                } while (this.match(TokenType.COMMA));
-                this.expect(TokenType.RPAREN, "Expected ')' after parameters");
+                    if (this.matchTk([TokenType.COMMA]))
+                        this.advance();
+                } while (!this.match(TokenType.RPAREN));
+                if (this.match(TokenType.EOF))
+                    throw "Expected ')' after parameters";
             }
             this.expect(TokenType.LBRACE, "Expected '{' before function body");
             const body = this.parseBlock();
@@ -388,6 +412,12 @@ class Parser {
         }
         if (this.match(TokenType.FN)) {
             return doFn.call(this, false);
+        }
+        if (this.match(TokenType.ON)) {
+            const event = this.expect(TokenType.IDENTIFIER, "Expected '(' after 'if'");
+            this.expect(TokenType.LBRACE, "Expected '{' after on event statement");
+            const branch = this.parseBlock();
+            return { type: "OnEvent", branch, event: event.value };
         }
         if (this.match(TokenType.IF)) {
             this.expect(TokenType.LPAREN, "Expected '(' after 'if'");
@@ -403,16 +433,17 @@ class Parser {
             return { type: "If", condition, thenBranch, elseBranch };
         }
         if (this.match(TokenType.FOR)) {
-            this.expect(TokenType.LPAREN, "Expected '(' after 'for'");
+            // this.expect(TokenType.LPAREN, "Expected '(' after 'for'");
+            let define = false;
+            if (this.match(TokenType.VAR))
+                define = true;
             const varname = this.parseAssignment();
-            const of = this.expect(TokenType.IDENTIFIER, 'expected of');
-            if (of.value !== 'of')
-                throw new Error('expected of');
+            this.expect(TokenType.IN, 'expected of');
             const times = this.parseAssignment();
-            this.expect(TokenType.RPAREN, "Expected ')' after for");
+            // this.expect(TokenType.RPAREN, "Expected ')' after for");
             this.expect(TokenType.LBRACE, "Expected '{' after for");
             const branch = this.parseBlock();
-            return { type: "For", varname, times, branch };
+            return { type: "For", varname, times, branch, define };
         }
         if (this.match(TokenType.GREENFLAG)) {
             this.expect(TokenType.LBRACE, "Expected '{' after greenflag");
@@ -433,13 +464,7 @@ class Parser {
         return nodes;
     }
     parseAssignment() {
-        if (this.match(TokenType.NOT)) {
-            return {
-                type: 'Not',
-                body: this.parseAssignment(),
-            };
-        }
-        let expr = this.parseBinaryExpression();
+        const expr = this.parseBinaryExpression();
         if (this.match(TokenType.ASSIGN)) {
             if (expr.type !== "Identifier")
                 throw new Error("Invalid assignment target; expected an identifier");
@@ -466,7 +491,7 @@ class Parser {
     }
     parseBinaryExpression() {
         let left = this.parseCall();
-        while (this.peek().type === TokenType.BINOP || this.peek().type === TokenType.GREATER) {
+        while (this.peek().type === TokenType.BINOP) {
             const operator = this.advance().value;
             const right = this.parseCall();
             left = { type: "BinaryExpression", operator, left, right };
@@ -474,6 +499,12 @@ class Parser {
         return left;
     }
     parseCall() {
+        if (this.match(TokenType.NOT)) {
+            return {
+                type: 'Not',
+                body: this.parseCall(),
+            };
+        }
         let expr = this.parsePrimary();
         while (this.peek().type === TokenType.LPAREN) {
             expr = this.finishCall(expr);
@@ -482,7 +513,10 @@ class Parser {
             this.advance();
             const identifier = this.expect(TokenType.IDENTIFIER, "Expected identifier after OOP dereferencer");
             if (this.matchTk([TokenType.LPAREN])) {
-                const fnCallNode = this.finishCall(expr, false);
+                const fnCallNode = this.finishCall({
+                    name: identifier.value,
+                    type: 'Identifier'
+                }, false);
                 expr = {
                     object: expr,
                     type: 'ObjectMethodCall',
@@ -506,7 +540,9 @@ class Parser {
         if (this.peek().type !== TokenType.RPAREN) {
             do {
                 args.push(this.parseAssignment());
-            } while (this.match(TokenType.COMMA));
+                if (this.matchTk([TokenType.COMMA]))
+                    this.advance();
+            } while (!this.matchTk([TokenType.RPAREN, TokenType.EOF]));
         }
         this.expect(TokenType.RPAREN, "Expected ')' after arguments");
         if (this.peek().type === TokenType.LBRACE) {
@@ -526,8 +562,8 @@ class Parser {
                 branches,
             };
         }
-        if (callee.type !== "Identifier" && callee.type !== 'ObjectAccess' && callee.type !== 'ObjectMethodCall')
-            throw new Error("Function call expects an identifier, objectaccess or objectmethodcall");
+        if (callee.type !== "Identifier")
+            throw new Error(`Function call expects an identifier. got ${callee.type}`);
         return {
             type: "FunctionCall",
             identifier: callee.name,

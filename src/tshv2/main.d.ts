@@ -16,7 +16,6 @@ export declare enum TokenType {
     FOR = "FOR",
     ELSE = "ELSE",
     EOF = "EOF",
-    GREATER = "GREATER",
     GREENFLAG = "GREENFLAG",
     INCLUDE = "INCLUDE",
     LIST = "LIST",
@@ -25,7 +24,9 @@ export declare enum TokenType {
     ASSIGNBINOP = "ASSIGNBINOP",
     LBRACKET = "LBRAKET",
     RBRACKET = "RBRAKET",
-    COLON_THINGY = "COLON_THINGY"
+    COLON_THINGY = "COLON_THINGY",
+    ON = "ON",
+    IN = "IN"
 }
 export interface Token {
     type: TokenType;
@@ -53,7 +54,7 @@ export declare class Lexer {
     tokens: Token[];
     tokenize(): Token[];
 }
-export type NodeType = "VariableDeclaration" | "FunctionDeclaration" | "Assignment" | "BinaryExpression" | "Not" | "Literal" | "Identifier" | "FunctionCall" | "BranchFunctionCall" | "StartBlock" | "If" | "For" | "GreenFlag" | "Boolean" | "Include" | "ListDeclaration" | "Return" | "ObjectAccess" | "ObjectMethodCall";
+export type NodeType = "VariableDeclaration" | "FunctionDeclaration" | "Assignment" | "BinaryExpression" | "Not" | "Literal" | "Identifier" | "FunctionCall" | "BranchFunctionCall" | "StartBlock" | "If" | "For" | "GreenFlag" | "Boolean" | "Include" | "ListDeclaration" | "Return" | "ObjectAccess" | "ObjectMethodCall" | "OnEvent";
 export interface ASTNode {
     type: string;
 }
@@ -118,8 +119,9 @@ export interface IfNode extends ASTNode {
 export interface ForNode extends ASTNode {
     type: "For";
     times: ASTNode;
-    varname: ASTNode;
+    varname: IdentifierNode;
     branch: ASTNode[];
+    define: boolean;
 }
 export interface GreenFlagNode extends ASTNode {
     type: "GreenFlag";
@@ -155,7 +157,12 @@ export interface ObjectMethodCallNode extends ASTNode {
     method: string;
     args: ASTNode[];
 }
-export type Node = VariableDeclarationNode | FunctionDeclarationNode | AssignmentNode | BinaryExpressionNode | NotNode | LiteralNode | IdentifierNode | FunctionCallNode | BranchFunctionCallNode | StartBlockNode | IfNode | ForNode | GreenFlagNode | BooleanNode | IncludeNode | ListDeclarationNode | ReturnNode | ObjectAccessNode | ObjectMethodCallNode;
+export interface OnEventNode extends ASTNode {
+    type: "OnEvent";
+    branch: ASTNode[];
+    event: string;
+}
+export type Node = VariableDeclarationNode | FunctionDeclarationNode | AssignmentNode | BinaryExpressionNode | NotNode | LiteralNode | IdentifierNode | FunctionCallNode | BranchFunctionCallNode | StartBlockNode | IfNode | ForNode | GreenFlagNode | BooleanNode | IncludeNode | ListDeclarationNode | ReturnNode | ObjectAccessNode | ObjectMethodCallNode | OnEventNode;
 export declare class Parser {
     private tokens;
     private source;

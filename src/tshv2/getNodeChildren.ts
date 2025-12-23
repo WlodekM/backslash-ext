@@ -42,7 +42,7 @@ export function getNodeChildren(node: ASTNode): ASTNode[] {
 	}
 	n = node as BranchFunctionCallNode;
 	if (n.type == 'BranchFunctionCall') {
-		children.push(...n.args, ...n.branches.reduce<ASTNode[]>((p, c) => {
+		children.push(...n.args, ...n.branches.reduce((p: ASTNode[], c) => {
 			p.push(...c);
 			return p;
 		}, []))
